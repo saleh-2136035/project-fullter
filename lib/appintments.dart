@@ -3,6 +3,8 @@ import 'profile.dart'; // استيراد صفحة البروفايل
 import 'home_page.dart';
 import 'sign up.dart';
 import 'communicate.dart';
+
+
 class MyAppointments extends StatelessWidget {
   final List<Map<String, String>> appointments = [
     {'date': 'February 10, 2025', 'time': '10:00 AM', 'doctor': 'Ali Saleh'},

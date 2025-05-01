@@ -57,7 +57,7 @@ class HomeScreen1 extends StatelessWidget {
                           // عند الضغط على زر Cough test، التنقل إلى CoughTestScreen
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => CoughTestScreen()),
+                            MaterialPageRoute(builder: (context) => CoughTestScclass()),
                           );
                         },
                       style: ElevatedButton.styleFrom(
@@ -78,7 +78,7 @@ class HomeScreen1 extends StatelessWidget {
                         // عند الضغط على زر Cough test، التنقل إلى CoughTestScreen
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => CoughTestScreen()),
+                          MaterialPageRoute(builder: (context) => CoughTestScclass()),
                         );
                       },
                       style: ElevatedButton.styleFrom(

@@ -1,12 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // لتحويل JSON إلى بيانات Dart
-
-import 'home_page.dart'; // استيراد الصفحة الرئيسية
+import 'dart:convert';
+import 'home_page.dart';
 import 'appintments.dart'; // استيراد صفحة المواعيد
-import 'login.dart';
-import 'sign up.dart';
+import 'login.dart'; // استيراد صفحة تسجيل الدخول
+import 'sign up.dart'; // استيراد صفحة التسجيل
+
+import 'package:shared_preferences/shared_preferences.dart'; // استيراد الحزمة
 
 class MyProfileScreen extends StatefulWidget {
   @override
@@ -14,26 +15,119 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
-  // متغير لتحزين البيانات التي تأتي من API
-  late Future<Map<String, dynamic>> profileData;
+  // متغير لتخزين بيانات المريض
+  Map<String, dynamic> _profileData = {};
+
+
+
+  // دالة لتحديث التوكن
+  Future<void> refreshAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refresh_token');
+
+    if (refreshToken == null) {
+      showMessage(context, 'No refresh token found.');
+      return;
+    }
+
+    final String url = 'https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/';
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"refresh": refreshToken}),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        // الحصول على أكسس توكن جديد
+        final newAccessToken = responseData['access'];
+        prefs.setString('access_token', newAccessToken);  // تخزين التوكن الجديد
+        showMessage(context, "Token refreshed successfully");
+      } else {
+        showMessage(context, "Failed to refresh token ");
+      }
+    } catch (e) {
+      showMessage(context, "Error occurred while refreshing token ");
+      print(e);
+    }
+  }
+
+  //يبغاله تعديل
+  // دالة لجلب بيانات المريض
+  Future<void> fetchProfileData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('access_token');
+    final patient = prefs.getString('patient');
+
+    if (patient == null) {
+      showMessage(context, "Patient data not found.");
+      return;
+    }
+
+    final patientData = jsonDecode(patient);
+    final patientId = patientData['id'];
+
+
+    final String url = 'https://smart-analysis-of-health-condition.onrender.com/api/get_patinet/$patientId/';
+
+
+    print('Fetching data from: $url');
+
+    if (accessToken == null) {
+      showMessage(context, "No access token found.");
+      return;
+    }
+
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        setState(() {
+          _profileData = data;
+          // تحديث بيانات المريض
+        });
+      } else {
+        if (response.statusCode == 401) {
+          // التوكن منتهي الصلاحية، قم بتحديثه
+          await refreshAccessToken();
+        } else {
+          throw Exception('Failed to load profile data');
+        }
+      }
+    } catch (e) {
+      print('Error: $e');
+      showMessage(context, "Error occurred while fetching profile data");
+    }
+  }
+
+  // دالة لإظهار الرسائل للمستخدم
+  void showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontSize: 18)),
+        backgroundColor: Colors.teal,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    profileData = fetchProfileData();  // عند تحميل الصفحة نقوم بسحب البيانات
-  }
-
-  // دالة لسحب البيانات من الـ API
-  Future<Map<String, dynamic>> fetchProfileData() async {
-    final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/get_patinet/{patinetID}/'));
-
-    if (response.statusCode == 200) {
-      // إذا كانت الاستجابة ناجحة
-      return jsonDecode(response.body); // تحويل الـ JSON إلى Dart map
-    } else {
-      // في حالة الخطأ
-      throw Exception('Failed to load profile data');
-    }
+    fetchProfileData(); // جلب البيانات عند بدء الصفحة
   }
 
   @override
@@ -43,95 +137,72 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         title: Text('My Profile'),
         backgroundColor: Color(0xFFFFDDDD),
         actions: [
-          // أيقونة البروفايل
           IconButton(
             icon: Icon(Icons.account_circle),
-            onPressed: () {
-              // يمكنك إضافة أي وظيفة هنا عند الضغط على الأيقونة
-            },
+            onPressed: () {},
           ),
-          // أيقونة القائمة (Menu)
           IconButton(
             icon: Icon(Icons.menu),
             onPressed: () {
-              // عند الضغط على أيقونة القائمة (Menu)
               _openDrawer(context);
             },
           ),
         ],
       ),
       body: SafeArea(
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: profileData,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator()); // في انتظار البيانات
-            } else if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            } else if (!snapshot.hasData) {
-              return Center(child: Text('No Data Available'));
-            } else {
-              var profile = snapshot.data;
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Name: ${profile?['name']}',
-                      style: TextStyle(fontSize: 18),
+        child: _profileData.isEmpty
+            ? Center(child: CircularProgressIndicator()) // عرض مؤشر تحميل أثناء الانتظار
+            : Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Name: ${_profileData['user'] ['first_name']  ?? 'غير متوفر'}',
+                style: TextStyle(fontSize: 18),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Age: ${_profileData['patinet']['age'] ?? 'غير متوفر'}',
+                style: TextStyle(fontSize: 18),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Gender: ${_profileData['patinet']['gender'] ?? 'غير متوفر'}',
+                style: TextStyle(fontSize: 18),
+              ),
+              SizedBox(height: 20),
+              Divider(),
+              SizedBox(height: 20),
+              Text('Health Data: ${_profileData['patinet']['healthdataa'] ?? 'غير متوفر'}'),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFFFFDDDD),
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Date of birth day: ${profile?['dob']}',
-                      style: TextStyle(fontSize: 18),
+                    child: Text('Edit', style: TextStyle(color: Color(0xFF7B0000))),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFFFFDDDD),
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Gender: ${profile?['gender']}',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    SizedBox(height: 20),
-                    Divider(),
-                    SizedBox(height: 20),
-                    Text('..............................'),
-                    SizedBox(height: 10),
-                    Text('..............................'),
-                    SizedBox(height: 10),
-                    Text('..............................'),
-                    SizedBox(height: 10),
-                    Text('..............................'),
-                    SizedBox(height: 30),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFFDDDD), // اللون البني الزهري
-                          ),
-                          child: Text('Edit', style: TextStyle(color: Color(0xFF7B0000))),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFFDDDD),
-                          ),
-                          child: Text('Save', style: TextStyle(color: Color(0xFF7B0000))),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            }
-          },
+                    child: Text('Save', style: TextStyle(color: Color(0xFF7B0000))),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // وظيفة لفتح Drawer (القائمة الجانبية)
+  // دالة لفتح Drawer (القائمة الجانبية)
   void _openDrawer(BuildContext context) {
     showModalBottomSheet(
       context: context,

@@ -4,6 +4,7 @@ import 'profile.dart'; // استيراد صفحة البروفايل
 import 'appintments.dart'; // استيراد صفحة المواعيد
 import 'home_page.dart';
 import 'sign up.dart';
+
 class AnalysisResultsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

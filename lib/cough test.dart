@@ -4,7 +4,9 @@ import 'profile.dart'; // استيراد صفحة البروفايل
 import 'appintments.dart'; // استيراد صفحة المواعيد
 import 'home_page.dart';
 import 'analysis results.dart';
-class CoughTestScreen extends StatelessWidget {
+
+class CoughTestScclass  extends StatelessWidget {
+
   // إضافة key هنا
 
   @override
@@ -261,4 +263,6 @@ class CoughTestScreen extends StatelessWidget {
       },
     );
   }
-}
+  }
+
+

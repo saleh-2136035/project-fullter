@@ -1,16 +1,133 @@
 import 'package:flutter/material.dart';
-import 'profile.dart'; // استيراد صفحة البروفايل
-import 'home_page.dart';
-import 'sign up.dart';
-import 'communicate.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
+class MyAppointments extends StatefulWidget {
+  @override
+  _MyAppointmentsState createState() => _MyAppointmentsState();
+}
 
-class MyAppointments extends StatelessWidget {
-  final List<Map<String, String>> appointments = [
-    {'date': 'February 10, 2025', 'time': '10:00 AM', 'doctor': 'Ali Saleh'},
-    {'date': 'February 12, 2025', 'time': '2:00 PM', 'doctor': 'Fatima Ali'},
-    // إضافة المزيد من المواعيد هنا
-  ];
+class _MyAppointmentsState extends State<MyAppointments> {
+  List<Map<String, dynamic>> _appointments = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppointments();
+  }
+
+  Future<void> _loadAppointments() async {
+    try {
+      await _refreshAccessToken();
+
+      final prefs = await SharedPreferences.getInstance();
+      final patientJson = prefs.getString('patient');
+      if (patientJson == null) {
+        setState(() {
+          _errorMessage = 'بيانات المريض غير موجودة';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final patientMap = jsonDecode(patientJson);
+      final patientID = patientMap['id'];
+      final accessToken = prefs.getString('access_token');
+
+      final response = await http.get(
+        Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/patient_appintments/$patientID/'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final appointments = data['appointments'] as List<dynamic>?;
+
+        setState(() {
+          _appointments = appointments
+              ?.map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
+              .toList() ?? [];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'فشل في جلب المواعيد';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'حدث خطأ أثناء تحميل المواعيد أو ليس لديك مواعيد';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _cancelAppointment(int appointmentId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final patientJson = prefs.getString('patient');
+      if (patientJson == null) {
+        _showMessage('بيانات المريض غير موجودة');
+        return;
+      }
+
+      final patientMap = jsonDecode(patientJson);
+      final patientID = patientMap['id'];
+      final accessToken = prefs.getString('access_token');
+
+      final response = await http.patch(
+        Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/update_appointment/$appointmentId/'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'status': 'canceled',
+          'patientID': patientID,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        _showMessage('تم إلغاء الموعد بنجاح');
+        _loadAppointments(); // إعادة تحميل المواعيد
+      } else {
+        _showMessage('فشل في إلغاء الموعد');
+      }
+    } catch (e) {
+      _showMessage('حدث خطأ أثناء إلغاء الموعد');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _refreshAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refresh_token');
+
+    if (refreshToken == null) return;
+
+    final response = await http.post(
+      Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'refresh': refreshToken}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      prefs.setString('access_token', data['access']);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,148 +135,79 @@ class MyAppointments extends StatelessWidget {
       appBar: AppBar(
         title: Text('My Appointments'),
         backgroundColor: Color(0xFFFFDDDD),
-        actions: [
-          // أيقونة البروفايل
-          IconButton(
-            icon: Icon(Icons.account_circle),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => MyProfileScreen()),
-              );
-            },
-          ),
-          // أيقونة القائمة (Menu)
-          Builder(
-            builder: (context) {
-              return IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: () {
-                  // عند الضغط على أيقونة القائمة (Menu)، سيتم فتحها من الأسفل
-                  _openDrawer(context);
-                },
-              );
-            },
-          ),
-        ],
       ),
-      body: SafeArea(
-        child: ListView.builder(
-          itemCount: appointments.length,
-          itemBuilder: (context, index) {
-            return Card(
-              margin: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              color: Color(0xFFF4F4F4),
-              child: ListTile(
-                contentPadding: EdgeInsets.all(16),
-                title: Text(
-                  'Appointment: ${appointments[index]['date']} - ${appointments[index]['time']}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text('Doctor: ${appointments[index]['doctor']}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Tooltip للتعديل
-                    Tooltip(
-                      message: 'Edit Appointment', // النص التعليمي
-                      child: IconButton(
-                        icon: Icon(Icons.edit),
-                        onPressed: () {
-                          // من هنا يمكن تنفيذ وظيفة تعديل الموعد
-                        },
-                      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : _appointments.isEmpty
+                  ? Center(child: Text('لا توجد مواعيد حالياً'))
+                  : ListView.builder(
+                      padding: EdgeInsets.all(16),
+                      itemCount: _appointments.length,
+                      itemBuilder: (context, index) {
+                        final appt = _appointments[index];
+                        final date = appt['date'] ?? '';
+                        final timeRaw = appt['time'] ?? '';
+                        final time = timeRaw != ''
+                            ? DateFormat('hh:mm a').format(DateTime.parse(timeRaw))
+                            : '';
+                        final status = appt['status'] ?? 'غير معروف';
+                        final appointmentId = appt['id'];
+
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          elevation: 4,
+                          margin: EdgeInsets.only(bottom: 16),
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('📅 التاريخ: $date', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('⏰ الوقت: $time', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 8),
+                                Text('📌 الحالة: ${_getStatusText(status)}', style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _cancelAppointment(appointmentId),
+                                      tooltip: 'حذف الموعد',
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.chat, color: Colors.blue),
+                                      onPressed: () {
+                                        // لم يتم تنفيذ وظيفة الشات بعد
+                                      },
+                                      tooltip: 'الانتقال إلى الشات',
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    // Tooltip للتواصل
-                    Tooltip(
-                      message: 'Communicate with Doctor', // النص التعليمي
-                      child: IconButton(
-                        icon: Icon(Icons.chat),
-                        onPressed: () {
-                          // من هنا يمكن تنفيذ وظيفة التواصل مع الطبيب
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => ChatScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
-  // وظيفة لفتح Drawer من الأسفل إلى الأعلى
-  void _openDrawer(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        color: Color(0xFFFFDDDD),
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ListTile(
-              title: Text(
-                'Home',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen1()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'My Profile',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => MyProfileScreen()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Logout',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SignUpScreen()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'booked':
+        return 'محجوز';
+      case 'pending':
+        return 'قيد الانتظار';
+      case 'canceled':
+        return 'ملغي';
+      default:
+        return status;
+    }
   }
 }
-

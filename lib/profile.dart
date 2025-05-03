@@ -1,13 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'home_page.dart';
-import 'appintments.dart'; // استيراد صفحة المواعيد
-import 'login.dart'; // استيراد صفحة تسجيل الدخول
-import 'sign up.dart'; // استيراد صفحة التسجيل
-
-import 'package:shared_preferences/shared_preferences.dart'; // استيراد الحزمة
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyProfileScreen extends StatefulWidget {
   @override
@@ -15,119 +9,80 @@ class MyProfileScreen extends StatefulWidget {
 }
 
 class _MyProfileScreenState extends State<MyProfileScreen> {
-  // متغير لتخزين بيانات المريض
   Map<String, dynamic> _profileData = {};
+  bool _isEditing = false;
 
+  TextEditingController usernameController = TextEditingController();
+  TextEditingController firstNameController = TextEditingController();
+  TextEditingController lastNameController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
+  TextEditingController ageController = TextEditingController();
+  TextEditingController genderController = TextEditingController();
+  TextEditingController healthDataController = TextEditingController();
 
-
-  // دالة لتحديث التوكن
   Future<void> refreshAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     final refreshToken = prefs.getString('refresh_token');
 
-    if (refreshToken == null) {
-      showMessage(context, 'No refresh token found.');
-      return;
-    }
+    if (refreshToken == null) return;
 
-    final String url = 'https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/';
+    final url = 'https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"refresh": refreshToken}),
+    );
 
-    try {
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({"refresh": refreshToken}),
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        // الحصول على أكسس توكن جديد
-        final newAccessToken = responseData['access'];
-        prefs.setString('access_token', newAccessToken);  // تخزين التوكن الجديد
-        showMessage(context, "Token refreshed successfully");
-      } else {
-        showMessage(context, "Failed to refresh token ");
-      }
-    } catch (e) {
-      showMessage(context, "Error occurred while refreshing token ");
-      print(e);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      prefs.setString('access_token', data['access']);
     }
   }
 
-  //يبغاله تعديل
-  // دالة لجلب بيانات المريض
   Future<void> fetchProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+    await refreshAccessToken();
+
     final accessToken = prefs.getString('access_token');
     final patient = prefs.getString('patient');
+    final user = prefs.getString('user');
 
-    if (patient == null) {
-      showMessage(context, "Patient data not found.");
-      return;
-    }
+    if (accessToken == null || patient == null || user == null) return;
 
-    final patientData = jsonDecode(patient);
-    final patientId = patientData['id'];
+    final patientId = jsonDecode(patient)['id'];
+    final userId = jsonDecode(user)['id'];
 
+    final url = 'https://smart-analysis-of-health-condition.onrender.com/api/get_patinet/$patientId/';
 
-    final String url = 'https://smart-analysis-of-health-condition.onrender.com/api/get_patinet/$patientId/';
-
-
-    print('Fetching data from: $url');
-
-    if (accessToken == null) {
-      showMessage(context, "No access token found.");
-      return;
-    }
-
-
-    try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        var data = jsonDecode(response.body);
-        setState(() {
-          _profileData = data;
-          // تحديث بيانات المريض
-        });
-      } else {
-        if (response.statusCode == 401) {
-          // التوكن منتهي الصلاحية، قم بتحديثه
-          await refreshAccessToken();
-        } else {
-          throw Exception('Failed to load profile data');
-        }
-      }
-    } catch (e) {
-      print('Error: $e');
-      showMessage(context, "Error occurred while fetching profile data");
-    }
-  }
-
-  // دالة لإظهار الرسائل للمستخدم
-  void showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontSize: 18)),
-        backgroundColor: Colors.teal,
-        duration: const Duration(seconds: 3),
-      ),
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
     );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      setState(() {
+        _profileData = data;
+
+        // تعبئة البيانات في الحقول
+        usernameController.text = data['user']['username'] ?? '';
+        firstNameController.text = data['user']['first_name'] ?? '';
+        lastNameController.text = data['user']['last_name'] ?? '';
+        emailController.text = data['user']['email'] ?? '';
+        ageController.text = data['patinet']['age']?.toString() ?? '';
+        genderController.text = data['patinet']['gender'] ?? '';
+        healthDataController.text = data['patinet']['healthdataa'] ?? '';
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    fetchProfileData(); // جلب البيانات عند بدء الصفحة
+    fetchProfileData();
   }
 
   @override
@@ -136,152 +91,139 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       appBar: AppBar(
         title: Text('My Profile'),
         backgroundColor: Color(0xFFFFDDDD),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.account_circle),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: Icon(Icons.menu),
-            onPressed: () {
-              _openDrawer(context);
-            },
-          ),
-        ],
       ),
-      body: SafeArea(
-        child: _profileData.isEmpty
-            ? Center(child: CircularProgressIndicator()) // عرض مؤشر تحميل أثناء الانتظار
-            : Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Name: ${_profileData['user'] ['first_name']  ?? 'غير متوفر'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Age: ${_profileData['patinet']['age'] ?? 'غير متوفر'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Gender: ${_profileData['patinet']['gender'] ?? 'غير متوفر'}',
-                style: TextStyle(fontSize: 18),
-              ),
-              SizedBox(height: 20),
-              Divider(),
-              SizedBox(height: 20),
-              Text('Health Data: ${_profileData['patinet']['healthdataa'] ?? 'غير متوفر'}'),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: _profileData.isEmpty
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFFDDDD),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        buildTextField('Username', usernameController),
+                        buildTextField('First Name', firstNameController),
+                        buildTextField('Last Name', lastNameController),
+                        buildTextField('Email', emailController),
+                        buildTextField('Age', ageController, keyboardType: TextInputType.number),
+                        buildTextField('Gender', genderController),
+                        buildTextField('Health Condition', healthDataController),
+                      ],
                     ),
-                    child: Text('Edit', style: TextStyle(color: Color(0xFF7B0000))),
                   ),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFFDDDD),
-                    ),
-                    child: Text('Save', style: TextStyle(color: Color(0xFF7B0000))),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() => _isEditing = !_isEditing);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFFFFDDDD),
+                          ),
+                          child: Text(
+                            _isEditing ? 'Cancel' : 'Edit',
+                            style: TextStyle(color: Color(0xFF7B0000)),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isEditing ? saveProfileData : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFFFFDDDD),
+                          ),
+                          child: Text(
+                            'Save',
+                            style: TextStyle(color: Color(0xFF7B0000)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+    );
+  }
+
+  Widget buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextField(
+        controller: controller,
+        enabled: _isEditing,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
         ),
       ),
     );
   }
 
-  // دالة لفتح Drawer (القائمة الجانبية)
-  void _openDrawer(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        color: Color(0xFFFFDDDD),
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ListTile(
-              title: Text(
-                'Home',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen1()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'My appointments',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => MyAppointments()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Login',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Logout',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SignUpScreen()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> saveProfileData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await refreshAccessToken();
+
+    final accessToken = prefs.getString('access_token');
+    final patientData = prefs.getString('patient');
+    final userData = prefs.getString('user');
+
+    if (accessToken == null || patientData == null || userData == null) return;
+
+    final patientId = jsonDecode(patientData)['id'];
+    final userId = jsonDecode(userData)['id'];
+
+    final userUrl = 'https://smart-analysis-of-health-condition.onrender.com/api/update_user_data/$userId/';
+    final patientUrl = 'https://smart-analysis-of-health-condition.onrender.com/api/update_patient_data/$patientId/';
+
+    try {
+      final userRes = await http.patch(
+        Uri.parse(userUrl),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'username': usernameController.text,
+          'first_name': firstNameController.text,
+          'last_name': lastNameController.text,
+          'email': emailController.text,
+        }),
+      );
+
+      final patientRes = await http.patch(
+        Uri.parse(patientUrl),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'age': int.tryParse(ageController.text),
+          'gender': genderController.text,
+          'healthdataa': healthDataController.text,
+        }),
+      );
+
+      if (userRes.statusCode == 200 && patientRes.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Profile updated successfully"),
+          backgroundColor: Colors.teal,
+        ));
+        setState(() => _isEditing = false);
+        fetchProfileData(); // إعادة تحميل البيانات
+      } else {
+        throw Exception('Failed to update');
+      }
+    } catch (e) {
+      print(e);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Error updating profile"),
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 }

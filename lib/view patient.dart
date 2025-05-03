@@ -1,11 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'sign up.dart';
-import 'login.dart';
-import 'ReportPage.dart';
-
-void main() {
-  runApp(MaterialApp(home: ViewPatientScreen()));
-}
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ViewPatientScreen extends StatefulWidget {
   @override
@@ -13,277 +9,200 @@ class ViewPatientScreen extends StatefulWidget {
 }
 
 class _ViewPatientScreenState extends State<ViewPatientScreen> {
-  final List<Map<String, String>> patients = [
-    {'name': 'Ahmed Ali', 'email': 'ahmed.ali@example.com', 'id': '123456'},
-    {'name': 'Layla Hassan', 'email': 'layla.hassan@example.com', 'id': '234567'},
-    {'name': 'Ali Saleh', 'email': 'ali.saleh@example.com', 'id': '345678'},
-  ];
+  List<dynamic> appointments = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchAppointments();
+  }
+
+  Future<void> fetchAppointments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final doctor = prefs.getString('doctor');
+      final refreshToken = prefs.getString('refresh_token');
+      if (doctor == null || refreshToken == null) return;
+
+      final doctorID = jsonDecode(doctor)['id'];
+
+      final refreshRes = await http.post(
+        Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh': refreshToken}),
+      );
+
+      if (refreshRes.statusCode == 200) {
+        final newAccess = jsonDecode(refreshRes.body)['access'];
+        prefs.setString('access_token', newAccess);
+
+        final res = await http.get(
+          Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/doctor_appintments/$doctorID/'),
+          headers: {'Authorization': 'Bearer $newAccess'},
+        );
+
+        if (res.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(res.bodyBytes));
+          setState(() {
+            appointments = data['appointments'];
+            isLoading = false;
+          });
+        } else {
+          print('Failed to fetch appointments');
+        }
+      } else {
+        print('Failed to refresh token');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color color = status == 'available' ? Colors.green : Colors.red;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('View Patient'),
+        title: Text('صفحة مواعيد الدكتور'),
         backgroundColor: Color(0xFFFFDDDD),
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : appointments.isEmpty
+              ? Center(child: Text('لا توجد مواعيد حالياً.'))
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        'هذه صفحة المواعيد الخاصة بك، يمكنك الإطلاع على جميع المواعيد القادمة والتفاعل معها.',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: appointments.length,
+                        itemBuilder: (context, index) {
+                          final appointment = appointments[index];
+                          final patient = appointment['patientID'];
+                          final user = patient != null ? patient['userID'] : null;
+                          final status = appointment['status'];
+
+                          return Card(
+                            margin: EdgeInsets.all(12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            color: Color(0xFFFFEEEE),
+                            child: ListTile(
+                              title: Text(
+                                'Date: ${appointment['date']}',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(height: 4),
+                                  Text('Time: ${appointment['time']}'),
+                                  SizedBox(height: 4),
+                                  _buildStatusBadge(status),
+                                  if (user != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text('Patient: ${user['first_name']} ${user['last_name']}'),
+                                    ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.info, color: Colors.blue),
+                                    onPressed: () {
+                                      _showDetailsDialog(context, appointment);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.chat, color: Colors.black54),
+                                    onPressed: () {
+                                      // لاحقًا: الانتقال إلى صفحة الشات
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+    );
+  }
+
+  void _showDetailsDialog(BuildContext context, Map<String, dynamic> appointment) {
+    final patient = appointment['patientID'];
+    final user = patient != null ? patient['userID'] : null;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(
+          'Appointment Details',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Date:', appointment['date']),
+              _buildDetailRow('Time:', appointment['time']),
+              _buildDetailRow('Status:', appointment['status']),
+              if (user != null) ...[
+                Divider(),
+                _buildDetailRow('Name:', '${user['first_name']} ${user['last_name']}'),
+                _buildDetailRow('Email:', user['email']),
+                _buildDetailRow('Gender:', patient['gender']),
+                _buildDetailRow('Age:', patient['age'].toString()),
+              ],
+            ],
+          ),
+        ),
         actions: [
-          Builder(
-            builder: (context) {
-              return IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: () {
-                  _openDrawer(context);
-                },
-              );
-            },
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // حقل البحث
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Search',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-
-              // عرض قائمة المرضى
-              Expanded(
-                child: ListView.builder(
-                  itemCount: patients.length,
-                  itemBuilder: (context, index) {
-                    return Card(
-                      margin: EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      color: Color(0xFFFFDDDD),
-                      child: ListTile(
-                        contentPadding: EdgeInsets.all(16),
-                        leading: Icon(Icons.person),
-                        title: Text(
-                          'Name: ${patients[index]['name']}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text('Email: ${patients[index]['email']}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit),
-                              onPressed: () {
-                                _editPatientDetails(context, index);
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.visibility),
-                              onPressed: () {
-                                _viewPatientDetails(context, index);
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.file_download),
-                              onPressed: () {
-                                // إرسال التقرير عند الضغط
-                                _sendReport(context, index);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
-  // إرسال التقرير
-  void _sendReport(BuildContext context, int index) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Send Report to ${patients[index]['name']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Do you want to send a report to ${patients[index]['name']}?'),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  // يمكنك إضافة الوظيفة الخاصة بإرسال التقرير هنا.
-                  Navigator.of(context).pop(); // إغلاق النافذة
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Report sent to ${patients[index]['name']}')),
-                  );
-                },
-                child: Text('Send Report'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // وظيفة لتحرير تفاصيل المريض
-  void _editPatientDetails(BuildContext context, int index) {
-    TextEditingController emailController = TextEditingController(text: patients[index]['email']);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Edit Patient Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Editing details for ${patients[index]['name']}'),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                ),
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    patients[index]['email'] = emailController.text;
-                  });
-                  Navigator.of(context).pop(); // إغلاق النافذة
-                },
-                child: Text('Save'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // وظيفة لعرض تفاصيل المريض
-  void _viewPatientDetails(BuildContext context, int index) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Patient Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Name: ${patients[index]['name']}'),
-              Text('Email: ${patients[index]['email']}'),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // إغلاق النافذة
-                },
-                child: Text('Close'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // وظيفة لفتح Drawer من الأسفل إلى الأعلى
-  void _openDrawer(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        color: Color(0xFFFFDDDD),
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ListTile(
-              title: Text(
-                'View Patient',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ViewPatientScreen()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Reports', // إضافة خيار التقارير المرسلة
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ReportScreen()), // الانتقال إلى صفحة التقارير المرسلة
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Login',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
-                );
-              },
-            ),
-            Divider(),
-            ListTile(
-              title: Text(
-                'Logout',
-                style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
-              ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SignUpScreen()),
-                );
-              },
-            ),
-
-          ],
-        ),
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 16))),
+        ],
       ),
     );
   }

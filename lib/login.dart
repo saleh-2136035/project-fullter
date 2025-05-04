@@ -94,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: Text('تسجيل الدخول'),
+          title: Text(''),
           backgroundColor: Color(0xFFFFDDDD),
         ),
         body: SafeArea(
@@ -130,13 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     validator: (value) => value!.isEmpty ? 'الرجاء إدخال كلمة المرور' : null,
                   ),
                   SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () {},
-                      child: Text('هل نسيت كلمة المرور؟'),
-                    ),
-                  ),
                   SizedBox(height: 20),
                   _isLoading
                       ? Center(child: CircularProgressIndicator())

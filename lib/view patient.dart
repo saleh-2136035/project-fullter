@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'chat.dart';
-
+import 'login.dart';
 class ViewPatientScreen extends StatefulWidget {
   @override
   _ViewPatientScreenState createState() => _ViewPatientScreenState();
@@ -88,7 +88,15 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('صفحة مواعيد الدكتور'),
+            IconButton(
+              icon: Icon(Icons.logout_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                );
+              },
+            ),
             IconButton(
               icon: Icon(Icons.refresh),
               onPressed: () {
@@ -98,10 +106,17 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
                 fetchAppointments();
               },
             ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text('صفحة مواعيد الدكتور'),
+              ),
+            ),
           ],
         ),
         backgroundColor: Color(0xFFFFDDDD),
       ),
+
       body:
           isLoading
               ? Center(child: CircularProgressIndicator())

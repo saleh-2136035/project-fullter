@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'chat.dart';
+import 'dart:ui'; // ✅ لدعم TextDirection.rtl
 
 class MyAppointments extends StatefulWidget {
   @override
@@ -49,7 +50,6 @@ class _MyAppointmentsState extends State<MyAppointments> {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final appointments = data['appointments'] as List<dynamic>?;
-        print(data);
         setState(() {
           _appointments =
               appointments
@@ -100,7 +100,7 @@ class _MyAppointmentsState extends State<MyAppointments> {
 
       if (response.statusCode == 200) {
         _showMessage('تم إلغاء الموعد بنجاح');
-        _loadAppointments(); // إعادة تحميل المواعيد
+        _loadAppointments();
       } else {
         _showMessage('فشل في إلغاء الموعد');
       }
@@ -151,103 +151,6 @@ class _MyAppointmentsState extends State<MyAppointments> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('My Appointments'),
-        backgroundColor: Color(0xFFFFDDDD),
-      ),
-      body:
-          _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-              ? Center(child: Text(_errorMessage!))
-              : _appointments.isEmpty
-              ? Center(child: Text('لا توجد مواعيد حالياً'))
-              : ListView.builder(
-                padding: EdgeInsets.all(16),
-                itemCount: _appointments.length,
-                itemBuilder: (context, index) {
-                  final appt = _appointments[index];
-                  final date = appt['date'] ?? '';
-                  final timeRaw = appt['time'] ?? '';
-                  final time =
-                      timeRaw != ''
-                          ? DateFormat(
-                            'hh:mm a',
-                          ).format(DateTime.parse(timeRaw))
-                          : '';
-                  final status = appt['status'] ?? 'غير معروف';
-                  final appointmentId = appt['id'];
-                  Color color = status != 'booked' ? Colors.green : Colors.red;
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 4,
-                    margin: EdgeInsets.only(bottom: 16),
-                    color: Color(0xFFFBE7E7),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'التاريخ: $date',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          SizedBox(height: 8),
-                          Text('الوقت: $time', style: TextStyle(fontSize: 16)),
-                          SizedBox(height: 8),
-                          // Text(
-                          //   ' الحالة: ${_getStatusText(status) != 'booked' ? '${_getStatusText(status)}' : 'محجوز'}',
-                          //   style: TextStyle(
-                          //     color: color,
-                          //     fontWeight: FontWeight.bold,
-                          //   ),
-                          // ),
-                          _buildStatusBadge(_getStatusText(status)),
-                          SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed:
-                                    () => _cancelAppointment(appointmentId),
-                                tooltip: 'حذف الموعد',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.chat, color: Colors.blue),
-                                onPressed: () async {
-                                  final prefs =
-                                      await SharedPreferences.getInstance();
-                                  await prefs.setInt(
-                                    'chat_id',
-                                    appt['chat'],
-                                  ); // تأكد أن المفتاح الصحيح هو 'chat'
-
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ChatPage(),
-                                    ),
-                                  );
-                                },
-                                tooltip: 'الانتقال إلى الشات',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-    );
-  }
-
   String _getStatusText(String status) {
     switch (status) {
       case 'booked':
@@ -259,5 +162,96 @@ class _MyAppointmentsState extends State<MyAppointments> {
       default:
         return status;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('مواعيدي'),
+          backgroundColor: Color(0xFFFFDDDD),
+        ),
+        body:
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                ? Center(child: Text(_errorMessage!))
+                : _appointments.isEmpty
+                ? Center(child: Text('لا توجد مواعيد حالياً'))
+                : ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: _appointments.length,
+                  itemBuilder: (context, index) {
+                    final appt = _appointments[index];
+                    final date = appt['date'] ?? '';
+                    final timeRaw = appt['time'] ?? '';
+                    final time =
+                        timeRaw != ''
+                            ? DateFormat(
+                              'hh:mm a',
+                            ).format(DateTime.parse(timeRaw))
+                            : '';
+                    final status = appt['status'] ?? 'غير معروف';
+                    final appointmentId = appt['id'];
+
+                    return Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      elevation: 4,
+                      margin: EdgeInsets.only(bottom: 16),
+                      color: Color(0xFFFBE7E7),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'التاريخ: $date',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'الوقت: $time',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 8),
+                            _buildStatusBadge(_getStatusText(status)),
+                            SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  onPressed:
+                                      () => _cancelAppointment(appointmentId),
+                                  tooltip: 'حذف الموعد',
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.chat, color: Colors.blue),
+                                  onPressed: () async {
+                                    final prefs =
+                                        await SharedPreferences.getInstance();
+                                    await prefs.setInt('chat_id', appt['chat']);
+
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatPage(),
+                                      ),
+                                    );
+                                  },
+                                  tooltip: 'الانتقال إلى المحادثة',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+      );
+
   }
 }

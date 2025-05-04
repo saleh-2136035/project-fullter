@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'home_page.dart';
 import 'appintments.dart'; // استيراد صفحة المواعيد
 import 'login.dart'; // استيراد صفحة تسجيل الدخول
-import 'sign up.dart'; // استيراد صفحة التسجيل
+import 'profile.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -327,82 +327,64 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   void _openDrawer(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
+      builder:
+          (context) => Container(
         color: Color(0xFFFFDDDD),
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+          children: [
             ListTile(
               title: Text(
-                'Home',
+                'الصفحة الرئيسية',
                 style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
               ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              onTap:
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => HomeScreen1()),
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen1()),
-                );
-              },
             ),
             Divider(),
             ListTile(
               title: Text(
-                'My appointments',
+                'ملفي الشخصي',
                 style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
               ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              onTap:
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MyProfileScreen()),
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => MyAppointments()),
-                );
-              },
             ),
             Divider(),
             ListTile(
               title: Text(
-                'Login',
+                'مواعيدي',
                 style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
               ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              onTap:
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MyAppointments()),
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
-                );
-              },
             ),
             Divider(),
             ListTile(
               title: Text(
-                'Logout',
+                'تسجيل الخروج',
                 style: TextStyle(color: Color(0xFF7B0000), fontSize: 18),
               ),
-              tileColor: Color(0xFFFFDDDD),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              onTap:
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => HomeScreen()),
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SignUpScreen()),
-                );
-              },
             ),
           ],
         ),
       ),
     );
   }
-}
+  }
+

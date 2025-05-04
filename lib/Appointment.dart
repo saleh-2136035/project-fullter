@@ -215,7 +215,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     margin: EdgeInsets.all(10),
-                    color: Color(0xFFF9F9F9),
+                    color: Color(0xFFFBE7E7),
                     child: ListTile(
                       contentPadding: EdgeInsets.symmetric(
                         vertical: 12,

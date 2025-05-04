@@ -11,6 +11,7 @@ class MyProfileScreen extends StatefulWidget {
 class _MyProfileScreenState extends State<MyProfileScreen> {
   Map<String, dynamic> _profileData = {};
   bool _isEditing = false;
+  bool isSaving = false;
 
   TextEditingController usernameController = TextEditingController();
   TextEditingController firstNameController = TextEditingController();
@@ -50,7 +51,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (accessToken == null || patient == null || user == null) return;
 
     final patientId = jsonDecode(patient)['id'];
-    final userId = jsonDecode(user)['id'];
 
     final url = 'https://smart-analysis-of-health-condition.onrender.com/api/get_patinet/$patientId/';
 
@@ -67,7 +67,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       setState(() {
         _profileData = data;
 
-        // تعبئة البيانات في الحقول
         usernameController.text = data['user']['username'] ?? '';
         firstNameController.text = data['user']['first_name'] ?? '';
         lastNameController.text = data['user']['last_name'] ?? '';
@@ -87,65 +86,77 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('My Profile'),
-        backgroundColor: Color(0xFFFFDDDD),
-      ),
-      body: _profileData.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('ملفي الشخصي'),
+          backgroundColor: Color(0xFFFFDDDD),
+        ),
+        body: _profileData.isEmpty
+            ? Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          buildTextField('اسم المستخدم', usernameController),
+                          buildTextField('الاسم الأول', firstNameController),
+                          buildTextField('اسم العائلة', lastNameController),
+                          buildTextField('البريد الإلكتروني', emailController),
+                          buildTextField('العمر', ageController, keyboardType: TextInputType.number),
+                          buildTextField('الجنس', genderController),
+                          buildTextField('الحالة الصحية', healthDataController),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Row(
                       children: [
-                        buildTextField('Username', usernameController),
-                        buildTextField('First Name', firstNameController),
-                        buildTextField('Last Name', lastNameController),
-                        buildTextField('Email', emailController),
-                        buildTextField('Age', ageController, keyboardType: TextInputType.number),
-                        buildTextField('Gender', genderController),
-                        buildTextField('Health Condition', healthDataController),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() => _isEditing = !_isEditing);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFFFFDDDD),
+                            ),
+                            child: Text(
+                              _isEditing ? 'إلغاء' : 'تعديل',
+                              style: TextStyle(color: Color(0xFF7B0000)),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isEditing && !isSaving ? saveProfileData : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFFFFDDDD),
+                            ),
+                            child: isSaving
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7B0000)),
+                                    ),
+                                  )
+                                : Text(
+                                    'حفظ',
+                                    style: TextStyle(color: Color(0xFF7B0000)),
+                                  ),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() => _isEditing = !_isEditing);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFFDDDD),
-                          ),
-                          child: Text(
-                            _isEditing ? 'Cancel' : 'Edit',
-                            style: TextStyle(color: Color(0xFF7B0000)),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isEditing ? saveProfileData : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFFDDDD),
-                          ),
-                          child: Text(
-                            'Save',
-                            style: TextStyle(color: Color(0xFF7B0000)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
@@ -165,6 +176,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> saveProfileData() async {
+    setState(() {
+      isSaving = true;
+    });
+
     final prefs = await SharedPreferences.getInstance();
     await refreshAccessToken();
 
@@ -172,7 +187,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final patientData = prefs.getString('patient');
     final userData = prefs.getString('user');
 
-    if (accessToken == null || patientData == null || userData == null) return;
+    if (accessToken == null || patientData == null || userData == null) {
+      setState(() {
+        isSaving = false;
+      });
+      return;
+    }
 
     final patientId = jsonDecode(patientData)['id'];
     final userId = jsonDecode(userData)['id'];
@@ -210,20 +230,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
       if (userRes.statusCode == 200 && patientRes.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Profile updated successfully"),
+          content: Text("تم تحديث الملف بنجاح"),
           backgroundColor: Colors.teal,
         ));
-        setState(() => _isEditing = false);
-        fetchProfileData(); // إعادة تحميل البيانات
+        setState(() {
+          _isEditing = false;
+        });
+        fetchProfileData();
       } else {
-        throw Exception('Failed to update');
+        throw Exception('فشل التحديث');
       }
     } catch (e) {
       print(e);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Error updating profile"),
+        content: Text("حدث خطأ أثناء التحديث"),
         backgroundColor: Colors.red,
       ));
+    } finally {
+      setState(() {
+        isSaving = false;
+      });
     }
   }
 }

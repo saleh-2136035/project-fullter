@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:untitled/login.dart';
-
-
-
+import 'login.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -14,14 +12,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: '',
       home: SignUpScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
+
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
 }
@@ -34,52 +35,58 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _gendrController = TextEditingController();
+  final TextEditingController _genderController = TextEditingController();
 
-  // دالة للتحقق من صحة البريد الإلكتروني
+  bool _isLoading = false;
+
   bool isValidEmail(String email) {
     final emailRegExp = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     return emailRegExp.hasMatch(email);
   }
 
-  // دالة لإرسال البيانات إلى API
   Future<void> createUser(BuildContext context) async {
+    if (_firstNameController.text.isEmpty ||
+        _lastNameController.text.isEmpty ||
+        _usernameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        _ageController.text.isEmpty ||
+        _genderController.text.isEmpty) {
+      showMessage(context, "جميع الحقول مطلوبة");
+      return;
+    }
+
+    if (!isValidEmail(_emailController.text)) {
+      showMessage(context, "يرجى إدخال بريد إلكتروني صالح");
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      showMessage(context, "كلمات المرور غير متطابقة");
+      return;
+    }
+
     final String url = 'https://smart-analysis-of-health-condition.onrender.com/api/create_user/';
 
     final Map<String, dynamic> userData = {
       "first_name": _firstNameController.text,
       "last_name": _lastNameController.text,
       "username": _usernameController.text,
-      "age":_ageController.text,
-      "gender":_gendrController.text,
+      "age": _ageController.text,
+      "gender": _genderController.text,
       "email": _emailController.text,
       "password1": _passwordController.text,
       "password2": _confirmPasswordController.text,
-      "role": "patient", // ثابت "مريض"
+      "role": "patient",
     };
 
-    // تحقق من البيانات المدخلة
-    if (_firstNameController.text.isEmpty || _lastNameController.text.isEmpty || _usernameController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty ||_ageController.text.isEmpty||_gendrController.text.isEmpty) {
-      showMessage(context, "All fields are required.");
-      return;
-    }
-
-    if (!isValidEmail(_emailController.text)) {
-      showMessage(context, "Please enter a valid email.");
-      return;
-    }
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      showMessage(context, "Passwords do not match.");
-      return;
-    }
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode(userData),
       );
 
@@ -89,23 +96,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
         showMessage(context, responseData['message']);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),  // تأكد من أنك استوردت صفحة LoginScreen
+          MaterialPageRoute(builder: (context) => HomeScreen()),
         );
       } else if (response.statusCode == 400) {
         showMessage(context, responseData['message']);
       } else {
-        showMessage(context, 'An error occurred while creating the user.');
+        showMessage(context, 'حدث خطأ أثناء إنشاء الحساب');
       }
     } catch (e) {
-      showMessage(context, "An error occurred while connecting to the server.");
+      showMessage(context, "تعذر الاتصال بالخادم");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  // عرض الرسالة للمستخدم
   void showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontSize: 18)),
+        content: Text(message, style: const TextStyle(fontSize: 16)),
         backgroundColor: Colors.teal,
         duration: const Duration(seconds: 3),
       ),
@@ -114,103 +122,91 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-        backgroundColor: Color(0xFFFFDDDD),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(  // إضافة ScrollView لتمرير الصفحة
-          child: Padding(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('إنشاء حساب'),
+          backgroundColor: const Color(0xFFFFDDDD),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'Sign up',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                const Text(
+                  'تسجيل حساب جديد',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _firstNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'الاسم الأول', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _lastNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Last Name',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'اسم العائلة', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'اسم المستخدم', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _ageController,
-                  decoration: InputDecoration(
-                    labelText: 'Age',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'العمر', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
-                  controller: _gendrController,
-                  decoration: InputDecoration(
-                    labelText: 'Gender',
-                    border: OutlineInputBorder(),
-                  ),
+                  controller: _genderController,
+                  decoration: const InputDecoration(labelText: 'الجنس', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'البريد الإلكتروني', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'كلمة المرور', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور', border: OutlineInputBorder()),
                 ),
-                SizedBox(height: 5),
-                ElevatedButton(
+                const SizedBox(height: 12),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => createUser(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFDDDD),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('تسجيل', style: TextStyle(color: Color(0xFF7B0000), fontSize: 18)),
+                        ),
+                      ),
+                const SizedBox(height: 10),
+                TextButton(
                   onPressed: () {
-                    createUser(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => HomeScreen()),
+                    );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFFFDDDD),
+                  child: const Text(
+                    'لديك حساب؟ تسجيل الدخول',
+                    style: TextStyle(fontSize: 16, color: Colors.teal),
                   ),
-                  child: Text('Sign up', style: TextStyle(color: Color(0xFF7B0000))),
                 ),
               ],
             ),

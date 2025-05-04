@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'chat.dart';
 class MyAppointments extends StatefulWidget {
   @override
   _MyAppointmentsState createState() => _MyAppointmentsState();
@@ -39,20 +39,24 @@ class _MyAppointmentsState extends State<MyAppointments> {
       final accessToken = prefs.getString('access_token');
 
       final response = await http.get(
-        Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/patient_appintments/$patientID/'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-        },
+        Uri.parse(
+          'https://smart-analysis-of-health-condition.onrender.com/api/patient_appintments/$patientID/',
+        ),
+        headers: {'Authorization': 'Bearer $accessToken'},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final appointments = data['appointments'] as List<dynamic>?;
-
+        print(data);
         setState(() {
-          _appointments = appointments
-              ?.map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
-              .toList() ?? [];
+          _appointments =
+              appointments
+                  ?.map<Map<String, dynamic>>(
+                    (item) => item as Map<String, dynamic>,
+                  )
+                  .toList() ??
+              [];
           _isLoading = false;
         });
       } else {
@@ -83,15 +87,14 @@ class _MyAppointmentsState extends State<MyAppointments> {
       final accessToken = prefs.getString('access_token');
 
       final response = await http.patch(
-        Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/update_appointment/$appointmentId/'),
+        Uri.parse(
+          'https://smart-analysis-of-health-condition.onrender.com/api/update_appointment/$appointmentId/',
+        ),
         headers: {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'status': 'canceled',
-          'patientID': patientID,
-        }),
+        body: jsonEncode({'status': 'canceled', 'patientID': null}),
       );
 
       if (response.statusCode == 200) {
@@ -106,9 +109,9 @@ class _MyAppointmentsState extends State<MyAppointments> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _refreshAccessToken() async {
@@ -118,7 +121,9 @@ class _MyAppointmentsState extends State<MyAppointments> {
     if (refreshToken == null) return;
 
     final response = await http.post(
-      Uri.parse('https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/'),
+      Uri.parse(
+        'https://smart-analysis-of-health-condition.onrender.com/api/token/refresh/',
+      ),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'refresh': refreshToken}),
     );
@@ -136,65 +141,91 @@ class _MyAppointmentsState extends State<MyAppointments> {
         title: Text('My Appointments'),
         backgroundColor: Color(0xFFFFDDDD),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _errorMessage != null
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : _errorMessage != null
               ? Center(child: Text(_errorMessage!))
               : _appointments.isEmpty
-                  ? Center(child: Text('لا توجد مواعيد حالياً'))
-                  : ListView.builder(
-                      padding: EdgeInsets.all(16),
-                      itemCount: _appointments.length,
-                      itemBuilder: (context, index) {
-                        final appt = _appointments[index];
-                        final date = appt['date'] ?? '';
-                        final timeRaw = appt['time'] ?? '';
-                        final time = timeRaw != ''
-                            ? DateFormat('hh:mm a').format(DateTime.parse(timeRaw))
-                            : '';
-                        final status = appt['status'] ?? 'غير معروف';
-                        final appointmentId = appt['id'];
+              ? Center(child: Text('لا توجد مواعيد حالياً'))
+              : ListView.builder(
+                padding: EdgeInsets.all(16),
+                itemCount: _appointments.length,
+                itemBuilder: (context, index) {
+                  final appt = _appointments[index];
+                  final date = appt['date'] ?? '';
+                  final timeRaw = appt['time'] ?? '';
+                  final time =
+                      timeRaw != ''
+                          ? DateFormat(
+                            'hh:mm a',
+                          ).format(DateTime.parse(timeRaw))
+                          : '';
+                  final status = appt['status'] ?? 'غير معروف';
+                  final appointmentId = appt['id'];
 
-                        return Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          elevation: 4,
-                          margin: EdgeInsets.only(bottom: 16),
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('📅 التاريخ: $date', style: TextStyle(fontSize: 16)),
-                                SizedBox(height: 8),
-                                Text('⏰ الوقت: $time', style: TextStyle(fontSize: 16)),
-                                SizedBox(height: 8),
-                                Text('📌 الحالة: ${_getStatusText(status)}', style: TextStyle(fontSize: 16)),
-                                SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _cancelAppointment(appointmentId),
-                                      tooltip: 'حذف الموعد',
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.chat, color: Colors.blue),
-                                      onPressed: () {
-                                        // لم يتم تنفيذ وظيفة الشات بعد
-                                      },
-                                      tooltip: 'الانتقال إلى الشات',
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
+                    elevation: 4,
+                    margin: EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '📅 التاريخ: $date',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '⏰ الوقت: $time',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '📌 الحالة: ${_getStatusText(status)}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed:
+                                    () => _cancelAppointment(appointmentId),
+                                tooltip: 'حذف الموعد',
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.chat, color: Colors.blue),
+                                onPressed: () async {
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.setInt(
+                                    'chat_id',
+                                    appt['chat'],
+                                  ); // تأكد أن المفتاح الصحيح هو 'chat'
+
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatPage(),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'الانتقال إلى الشات',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
     );
   }
 
@@ -210,4 +241,4 @@ class _MyAppointmentsState extends State<MyAppointments> {
         return status;
     }
   }
-} 
+}

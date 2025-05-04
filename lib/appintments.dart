@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'chat.dart';
+
 class MyAppointments extends StatefulWidget {
   @override
   _MyAppointmentsState createState() => _MyAppointmentsState();
@@ -134,6 +135,22 @@ class _MyAppointmentsState extends State<MyAppointments> {
     }
   }
 
+  Widget _buildStatusBadge(String status) {
+    Color color = status != 'booked' ? Colors.green : Colors.red;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status != 'booked' ? 'متاح' : 'محجوز',
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,32 +180,34 @@ class _MyAppointmentsState extends State<MyAppointments> {
                           : '';
                   final status = appt['status'] ?? 'غير معروف';
                   final appointmentId = appt['id'];
-
+                  Color color = status != 'booked' ? Colors.green : Colors.red;
                   return Card(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
                     elevation: 4,
                     margin: EdgeInsets.only(bottom: 16),
+                    color: Color(0xFFFBE7E7),
                     child: Padding(
                       padding: EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '📅 التاريخ: $date',
+                            'التاريخ: $date',
                             style: TextStyle(fontSize: 16),
                           ),
                           SizedBox(height: 8),
-                          Text(
-                            '⏰ الوقت: $time',
-                            style: TextStyle(fontSize: 16),
-                          ),
+                          Text('الوقت: $time', style: TextStyle(fontSize: 16)),
                           SizedBox(height: 8),
-                          Text(
-                            '📌 الحالة: ${_getStatusText(status)}',
-                            style: TextStyle(fontSize: 16),
-                          ),
+                          // Text(
+                          //   ' الحالة: ${_getStatusText(status) != 'booked' ? '${_getStatusText(status)}' : 'محجوز'}',
+                          //   style: TextStyle(
+                          //     color: color,
+                          //     fontWeight: FontWeight.bold,
+                          //   ),
+                          // ),
+                          _buildStatusBadge(_getStatusText(status)),
                           SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,

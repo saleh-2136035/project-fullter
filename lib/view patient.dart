@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'chat.dart';
+
 class ViewPatientScreen extends StatefulWidget {
   @override
   _ViewPatientScreenState createState() => _ViewPatientScreenState();
@@ -65,7 +66,7 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color = status == 'available' ? Colors.green : Colors.red;
+    Color color = status != 'booked' ? Colors.green : Colors.red;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -74,7 +75,7 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status,
+        status != 'booked' ? 'متاح' : 'محجوز',
         style: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
     );
@@ -84,7 +85,21 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('صفحة مواعيد الدكتور'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('صفحة مواعيد الدكتور'),
+            IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: () {
+                setState(() {
+                  isLoading = true;
+                });
+                fetchAppointments();
+              },
+            ),
+          ],
+        ),
         backgroundColor: Color(0xFFFFDDDD),
       ),
       body:
@@ -97,9 +112,9 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
                   Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Text(
-                      'هذه صفحة المواعيد الخاصة بك، يمكنك الإطلاع على جميع المواعيد القادمة والتفاعل معها.',
+                      'هذه صفحة المواعيد الخاصة بك، يمكنك الإطلاع على جميع المواعيد القادمة',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
@@ -113,13 +128,13 @@ class _ViewPatientScreenState extends State<ViewPatientScreen> {
                         final patient = appointment['patientID'];
                         final user = patient != null ? patient['userID'] : null;
                         final status = appointment['status'];
-
+                        
                         return Card(
                           margin: EdgeInsets.all(12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
-                          color: Color(0xFFFFEEEE),
+                          color: Color(0xFFFBE7E7),
                           child: ListTile(
                             title: Text(
                               'Date: ${appointment['date']}',

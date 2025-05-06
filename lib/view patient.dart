@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'chat.dart';
 import 'login.dart';
+
 class ViewPatientScreen extends StatefulWidget {
   @override
   _ViewPatientScreenState createState() => _ViewPatientScreenState();

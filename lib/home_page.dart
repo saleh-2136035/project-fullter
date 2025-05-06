@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'profile.dart'; // استيراد صفحة البروفايل
 import 'appintments.dart'; // استيراد صفحة المواعيد
 import 'login.dart'; // استيراد صفحة تسجيل الدخول
-import 'sign up.dart'; // استيراد صفحة التسجيل
 import 'cough test.dart';
-import 'analysis results.dart';
+
 
 class HomeScreen1 extends StatelessWidget {
   @override

@@ -2,10 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:untitled/login.dart';
-import 'login.dart';
-void main() {
-  runApp(const MyApp());
-}
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -127,7 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('إنشاء حساب'),
+          title: const Text(''),
           backgroundColor: const Color(0xFFFFDDDD),
         ),
         body: SafeArea(
@@ -160,9 +157,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   decoration: const InputDecoration(labelText: 'العمر', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: _genderController,
-                  decoration: const InputDecoration(labelText: 'الجنس', border: OutlineInputBorder()),
+                DropdownButtonFormField<String>(
+                  value: _genderController.text.isEmpty ? null : _genderController.text,
+                  decoration: const InputDecoration(
+                    labelText: 'الجنس',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem<String>(
+                      value: 'ذكر',
+                      child: Text('ذكر'),
+                    ),
+                    DropdownMenuItem<String>(
+                      value: 'أنثى',
+                      child: Text('أنثى'),
+                    ),
+                  ],
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _genderController.text = newValue!;
+                    });
+                  },
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -205,8 +220,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   },
                   child: const Text(
                     'لديك حساب؟ تسجيل الدخول',
-                    style: TextStyle(fontSize: 16, color: Colors.teal),
+                    style: TextStyle(fontSize: 16,),
                   ),
+
                 ),
               ],
             ),

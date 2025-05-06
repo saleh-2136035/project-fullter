@@ -202,7 +202,7 @@ class _CoughTestScreenState extends State<CoughTestScreen> {
                     Text('مرحباً بك في اختبار السعال!', style: TextStyle(fontSize: 18)),
                     SizedBox(height: 10),
                     Text(
-                      'يرجى الجلوس في مكان هادئ، وضع الهاتف على بُعد 20 سم من فمك، ثم السعال بصوتك الطبيعي عندما تبدأ التسجيل.',
+                      'يرجى الجلوس في مكان هادئ، وضع الهاتف على بُعد 20 سنتمتر من فمك، ثم السعال بصوتك الطبيعي عندما تبدأ التسجيل',
                       style: TextStyle(fontSize: 16, color: Colors.black54),
                       textAlign: TextAlign.center,
                     ),

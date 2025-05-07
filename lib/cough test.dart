@@ -69,7 +69,7 @@ class _CoughTestScreenState extends State<CoughTestScreen> {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       return response.statusCode == 200 ? data['access'] : null;
     } catch (e) {
-      print('❗️ خطأ في تحديث التوكن: $e');
+      print(' خطأ في تحديث التوكن: $e');
       return null;
     }
   }
@@ -78,7 +78,7 @@ class _CoughTestScreenState extends State<CoughTestScreen> {
     setState(() => isLoading = true); // عرض التحميل
     final file = File(path);
     if (!(await file.exists()) || await file.length() == 0) {
-      _showMessage('⚠️ الملف غير موجود أو فارغ');
+      _showMessage(' الملف غير موجود أو فارغ');
       return;
     }
 
@@ -146,10 +146,10 @@ class _CoughTestScreenState extends State<CoughTestScreen> {
               ),
         );
       } else {
-        _showMessage('❌ فشل التحليل: ${data.toString()}');
+        _showMessage(' فشل التحليل: ${data.toString()}');
       }
     } catch (e) {
-      _showMessage('❌ خطأ أثناء الاتصال بالخادم');
+      _showMessage(' خطأ أثناء الاتصال بالخادم');
     } finally {
       setState(() => isLoading = false); // إخفاء التحميل
     }
